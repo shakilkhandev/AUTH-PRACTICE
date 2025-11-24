@@ -5,11 +5,12 @@ import { login, logout, signup ,verifyEmail } from "../controllers/auth.controll
 const router = express.Router();
 
 router.post("/signup", signup);
+
 router.post("/login", login);
 
 router.post("/logout", logout);
 
-
-route.post("/verify-email",verifyEmail)
+router.post("/verify-email",verifyEmail)
+router.post("/forget-password",forgotPassword)
 
 export default router;

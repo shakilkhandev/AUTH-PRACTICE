@@ -1,10 +1,11 @@
 
 import { User } from "../models/user.model.js";
 // import { generateKey } from "crypto";  
-import bcrypt from "bcryptjs";
+import crypto  from "crypto"
+import bcryptjs from "bcryptjs";
 import { generateVerificationCode } from "../utils/generateVerificationCode.js";
 import { generateTokenAndSetCookie } from "../utils/generateTokenAndSetCookie.js";
-import { sendVerificationEmail } from "../mailtrap/emails.js";
+import { sendVerificationEmail , sendWelcomeEmail } from "../mailtrap/emails.js";
 
 export const signup = async (req, res) => {
     const { email, password, name } = req.body;
@@ -31,6 +32,7 @@ export const signup = async (req, res) => {
 
 
 
+         //send verification code to the user email 
 
         await sendVerificationEmail(email, verificationCode)
 
@@ -69,13 +71,13 @@ export const signup = async (req, res) => {
 }
 
 
-export const verifyEmail = async (res, req) => {
+export const verifyEmail = async (req, res) => {
     // 123456
 
     const { code } = req.body;
     try {
         const user = await User.findOne({
-            verificationToken: code,
+            verificationCode : code,
             verificationTokenExpiresAt: { $gt: Date.now() }
 
         })
@@ -84,9 +86,29 @@ export const verifyEmail = async (res, req) => {
             return res.status(400).json({ success: false, message: "invalid or expired verification code" })
         }
 
+        user.isVerified = true ; 
+        user.verificationCode = undefined;
+        user.verificationTokenExpiresAt = undefined ;  //these changes in  now on memory not in the database. 
+
+        await user.save();  //update user to DB  , unless .save() is called it will not update to the mongoDB 
+
+        await sendWelcomeEmail( user.email , user.name );
+        console.log("success");
+         res.status(201).json({
+            success: true,
+            message: "Verification Successfull",
+            user: {
+                ...user._doc,
+                password: undefined,
+            }
+
+        })
+
+
 
     } catch (error) {
-
+            console.log("Verificatioin error " , error) ;
+            throw new Error("verification error") ;
     }
 
 
@@ -96,9 +118,70 @@ export const verifyEmail = async (res, req) => {
 
 
 export const login = async (req, res) => {
-    res.send("login route")
+   
+    const {email , password } = req.body ;
+    try{
+        const user = await User.findOne({email});
+        if(!user){
+            return res.status(400).json({success : false , message : "Invalid credentials"});
+
+        }
+        const isPasswordValid = await bcryptjs.compare(password, user.password);
+        if(!isPasswordValid){
+            return res.status(400).json({success:false , message : "Invalid credentials"});
+        }
+        generateTokenAndSetCookie(res, user._id);
+
+        user.lastLogin = new Date();
+        await user.save();
+
+        res.status(200).json({
+            success: true ,
+            message: "Logged in successfully",
+            user:{
+                ...user._doc,
+                password:undefined,
+            }
+        })
+
+        
+    }catch(error){
+      console.log("Error in login ", error);
+		res.status(400).json({ success: false, message: error.message });
+    }
+
+
 }
 
 export const logout = async (req, res) => {
-    res.send("logout route working")
+    
+    
+    res.clearCookie("JWTtoken")
+    res.status(200).json({success: true , message : "logged out successfully"});
+    
+}
+
+
+export const forgotPassword = async (req , res ) => {
+    const {email} = req.body ; 
+    try {
+        const user = await User.findOne({email}) ;
+        if(!user){
+            return res.status(400).json({ success : false , message :"No user found"})
+
+        }
+
+        //Generate reset token 
+
+        const resetToken = crypto.randomBytes(20).toString("hex") ; 
+        const resetTokenExpiresAt = Date.now() + 1 * 60 * 60 * 1000 ; //1 hour
+
+        user.resetPasswordToken = resetToken ;
+        user.resetPasswordExpiresAt = resetTokenExpiresAt ;
+
+        await user.save() ; 
+
+    }catch(error){
+       
+    }
 }

@@ -36,7 +36,7 @@ app.use("/auth",authRoutes);
 
 // app.use("/auth", authRoutes) mounts all routes under /auth.
 
-// This makes /auth/signup, /auth/login, and /auth/logout available.
+// This makes /auth/signup, /auth/login, and /auth/logout available , means it will add /auth for every auth enpoint 
 
 
 
