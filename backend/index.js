@@ -3,6 +3,8 @@ import dotenv from "dotenv";
 import { connecDB } from './db/connectDB.js';
 import authRoutes from './routes/auth.route.js'
 
+import cookieParser  from 'cookie-parser';  //this is to parse cookie , work for verify auth each time . 
+
 
 
 dotenv.config(); 
@@ -18,6 +20,7 @@ const app = express();
 
 //uses app.use(express.json()) to  parse incoming requests : req.body 
 app.use(express.json());
+app.use(cookieParser()) ; 
 
 
 
